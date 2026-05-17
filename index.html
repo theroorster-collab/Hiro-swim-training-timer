@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>トレーニングタイマー</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@400;700;900&display=swap');
+
+:root {
+–bg: #f5f0e8;
+–card: #ffffff;
+–ink: #1a1a2e;
+–muted: #888;
+–plank: #e63946;
+–birddog: #2a9d8f;
+–rest: #f4a261;
+}
+
+- { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+background: var(–bg);
+color: var(–ink);
+font-family: ‘Noto Sans JP’, sans-serif;
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 24px 16px 60px;
+}
+
+h1 { font-family: ‘Bebas Neue’, sans-serif; font-size: 2.4rem; letter-spacing: 0.1em; margin-bottom: 4px; }
+.subtitle { font-size: 0.8rem; color: var(–muted); margin-bottom: 20px; letter-spacing: 0.05em; }
+
+.tabs {
+display: flex;
+background: #e8e3d8;
+border-radius: 50px;
+padding: 4px;
+margin-bottom: 24px;
+width: 100%;
+max-width: 420px;
+}
+.tab {
+flex: 1; text-align: center; padding: 10px 0; border-radius: 50px;
+font-size: 0.85rem; font-weight: 700; cursor: pointer;
+transition: background 0.2s, color 0.2s; color: var(–muted);
+border: none; background: transparent; font-family: ‘Noto Sans JP’, sans-serif;
+}
+.tab.active { background: #fff; color: var(–ink); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+.page { width: 100%; max-width: 420px; display: none; flex-direction: column; align-items: center; }
+.page.active { display: flex; }
+
+.overall-progress { width: 100%; height: 6px; background: #ddd; border-radius: 99px; margin-bottom: 24px; overflow: hidden; }
+.overall-progress-fill { height: 100%; border-radius: 99px; background: var(–ink); transition: width 0.4s ease; }
+
+.card {
+width: 100%; background: var(–card); border-radius: 24px;
+padding: 28px 24px 24px; box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+margin-bottom: 16px; position: relative; overflow: hidden; transition: opacity 0.15s;
+}
+.card-accent { position: absolute; top: 0; left: 0; right: 0; height: 6px; border-radius: 24px 24px 0 0; transition: background 0.4s; }
+.phase-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(–muted); margin-bottom: 4px; }
+.exercise-name { font-family: ‘Bebas Neue’, sans-serif; font-size: 2.8rem; line-height: 1; margin-bottom: 6px; transition: color 0.4s; }
+.set-info { font-size: 0.8rem; color: var(–muted); margin-bottom: 24px; min-height: 1.4em; }
+
+.circle-wrap { position: relative; width: 160px; margin: 0 auto 24px; }
+.circle-svg { transform: rotate(-90deg); }
+.circle-bg { fill: none; stroke: #eee; stroke-width: 8; }
+.circle-fg { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.9s linear, stroke 0.4s; }
+.circle-inner { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.timer-num { font-family: ‘Bebas Neue’, sans-serif; font-size: 4rem; line-height: 1; transition: color 0.4s; }
+.timer-sub { font-size: 0.7rem; color: var(–muted); letter-spacing: 0.1em; }
+
+.controls { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.btn {
+border: none; border-radius: 50px; cursor: pointer;
+font-family: ‘Noto Sans JP’, sans-serif; font-weight: 700; font-size: 0.85rem;
+transition: transform 0.1s; padding: 12px 24px;
+}
+.btn:active { transform: scale(0.96); }
+.btn-primary { background: var(–ink); color: #fff; min-width: 110px; }
+.btn-secondary { background: #eee; color: var(–ink); }
+.btn-skip { background: #fff; color: var(–muted); border: 1.5px solid #ddd; font-size: 0.8rem; padding: 10px 18px; }
+.btn-sound { background: #fff; border: 1.5px solid #ddd; color: var(–ink); padding: 10px 14px; border-radius: 50%; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+
+.sound-status { font-size: 0.7rem; color: var(–muted); text-align: center; margin-top: 8px; }
+
+.queue-title { width: 100%; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(–muted); margin-bottom: 8px; }
+.queue { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.queue-item { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 12px; padding: 12px 16px; opacity: 0.4; transition: opacity 0.3s, box-shadow 0.3s; }
+.queue-item.active { opacity: 1; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+.queue-item.done { opacity: 0.2; text-decoration: line-through; }
+.q-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.q-name { font-size: 0.88rem; font-weight: 700; flex: 1; }
+.q-detail { font-size: 0.75rem; color: var(–muted); }
+
+.finish-screen { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; background: #fff; border-radius: 24px; padding: 40px 24px; box-shadow: 0 8px 40px rgba(0,0,0,0.10); }
+.finish-emoji { font-size: 3.5rem; margin-bottom: 12px; }
+.finish-title { font-family: ‘Bebas Neue’, sans-serif; font-size: 2.6rem; margin-bottom: 6px; }
+.finish-sub { font-size: 0.88rem; color: var(–muted); margin-bottom: 24px; }
+.finish-stats { display: flex; gap: 28px; margin-bottom: 24px; }
+.stat { display: flex; flex-direction: column; align-items: center; }
+.stat-num { font-family: ‘Bebas Neue’, sans-serif; font-size: 2.2rem; }
+.stat-label { font-size: 0.7rem; color: var(–muted); }
+.finish-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+.cal-header { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 16px; }
+.cal-title { font-family: ‘Bebas Neue’, sans-serif; font-size: 1.8rem; letter-spacing: 0.05em; }
+.cal-nav { background: #eee; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 1rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.cal-grid { width: 100%; background: #fff; border-radius: 20px; padding: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.07); margin-bottom: 16px; }
+.cal-days-header { display: grid; grid-template-columns: repeat(7,1fr); text-align: center; font-size: 0.7rem; font-weight: 700; color: var(–muted); margin-bottom: 8px; }
+.cal-days { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+.cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.82rem; cursor: default; }
+.cal-day.other-month { color: #ccc; }
+.cal-day.today { background: #f0f0ff; font-weight: 700; }
+.cal-day.has-record { background: var(–ink); color: #fff; font-weight: 700; cursor: pointer; }
+
+.cal-stats { width: 100%; background: #fff; border-radius: 16px; padding: 16px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.07); margin-bottom: 12px; }
+.cal-stats-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; color: var(–muted); margin-bottom: 12px; text-transform: uppercase; }
+.cal-stats-row { display: flex; justify-content: space-between; }
+.cal-stat { display: flex; flex-direction: column; align-items: center; }
+.cal-stat-num { font-family: ‘Bebas Neue’, sans-serif; font-size: 1.8rem; }
+.cal-stat-label { font-size: 0.68rem; color: var(–muted); }
+
+.record-list { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.record-item { background: #fff; border-radius: 12px; padding: 12px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.record-date { font-size: 0.7rem; font-weight: 700; color: var(–muted); margin-bottom: 4px; }
+.record-detail { font-size: 0.85rem; font-weight: 700; }
+.record-note { font-size: 0.75rem; color: var(–muted); margin-top: 2px; }
+.empty-state { text-align: center; color: var(–muted); font-size: 0.88rem; padding: 32px 0; }
+
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+.pulsing { animation: pulse 1.2s ease-in-out infinite; }
+</style>
+
+</head>
+<body>
+
+<h1>🏊 SWIM TRAINING</h1>
+<p class="subtitle">プランク ＋ バードドッグ</p>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('timer')">⏱ タイマー</button>
+  <button class="tab" onclick="showTab('records')">📅 記録</button>
+</div>
+
+<!-- TIMER PAGE -->
+
+<div class="page active" id="page-timer">
+  <div class="overall-progress" style="width:100%">
+    <div class="overall-progress-fill" id="overallBar" style="width:0%"></div>
+  </div>
+
+  <div class="card" id="mainCard">
+    <div class="card-accent" id="cardAccent"></div>
+    <div class="phase-label" id="phaseLabel">準備完了</div>
+    <div class="exercise-name" id="exerciseName">プランク</div>
+    <div class="set-info" id="setInfo"></div>
+
+```
+<div class="circle-wrap">
+  <svg class="circle-svg" width="160" height="160" viewBox="0 0 160 160">
+    <circle class="circle-bg" cx="80" cy="80" r="68"/>
+    <circle class="circle-fg" id="circleFg" cx="80" cy="80" r="68"
+      stroke-dasharray="427" stroke-dashoffset="0" stroke="#1a1a2e"/>
+  </svg>
+  <div class="circle-inner">
+    <span class="timer-num" id="timerNum">60</span>
+    <span class="timer-sub" id="timerSub">秒</span>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn btn-sound" id="soundBtn" onclick="toggleSound()">🔔</button>
+  <button class="btn btn-secondary" onclick="resetAll()">リセット</button>
+  <button class="btn btn-primary pulsing" id="startBtn" onclick="toggleTimer()">スタート</button>
+  <button class="btn btn-skip" onclick="skipCurrent()">スキップ ⏭</button>
+</div>
+<div class="sound-status" id="soundStatus">🔔 音 ON　※スタートボタンを押すと音が有効になります</div>
+```
+
+  </div>
+
+  <div class="queue-title" id="queueTitleEl">本日のメニュー</div>
+  <div class="queue" id="queueList"></div>
+
+  <div class="finish-screen" id="finishScreen">
+    <div class="finish-emoji">🔥</div>
+    <div class="finish-title">トレーニング完了！</div>
+    <div class="finish-sub">よくがんばった！プールでも活かそう！</div>
+    <div class="finish-stats">
+      <div class="stat"><span class="stat-num">6</span><span class="stat-label">セット</span></div>
+      <div class="stat"><span class="stat-num" id="statMin">-</span><span class="stat-label">分</span></div>
+    </div>
+    <div class="finish-btns">
+      <button class="btn btn-primary" onclick="saveRecord()">📅 記録を保存</button>
+      <button class="btn btn-secondary" onclick="resetAll()">もう一度</button>
+    </div>
+    <p id="saveMsg" style="font-size:0.8rem;color:#2a9d8f;margin-top:12px;display:none;">✅ 記録を保存しました！</p>
+  </div>
+</div>
+
+<!-- RECORDS PAGE -->
+
+<div class="page" id="page-records">
+  <div class="cal-header" style="width:100%">
+    <button class="cal-nav" onclick="calPrev()">‹</button>
+    <div class="cal-title" id="calTitle"></div>
+    <button class="cal-nav" onclick="calNext()">›</button>
+  </div>
+  <div class="cal-grid">
+    <div class="cal-days-header">
+      <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+    </div>
+    <div class="cal-days" id="calDays"></div>
+  </div>
+  <div class="cal-stats">
+    <div class="cal-stats-title">今月の統計</div>
+    <div class="cal-stats-row">
+      <div class="cal-stat"><span class="cal-stat-num" id="statCount">0</span><span class="cal-stat-label">回トレーニング</span></div>
+      <div class="cal-stat"><span class="cal-stat-num" id="statStreak">0</span><span class="cal-stat-label">日連続</span></div>
+      <div class="cal-stat"><span class="cal-stat-num" id="statTotal">0</span><span class="cal-stat-label">総セット数</span></div>
+    </div>
+  </div>
+  <div class="queue-title" style="width:100%">トレーニング履歴</div>
+  <div class="record-list" id="recordList"></div>
+</div>
+
+<script>
+// ============================
+// AUDIO ENGINE
+// ============================
+let audioCtx = null;
+let soundOn = true;
+let audioReady = false;
+
+function initAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioReady = true;
+  } catch(e) {
+    console.warn('AudioContext failed:', e);
+  }
+}
+
+function resumeAudio() {
+  if (!audioCtx) initAudio();
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+function playTone(freq, startTime, duration, volume, type) {
+  if (!soundOn || !audioCtx || !audioReady) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(volume || 0.4, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.05);
+  } catch(e) {}
+}
+
+// Short tick (every second during work)
+function beepTick() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  playTone(660, t, 0.08, 0.15, 'sine');
+}
+
+// Countdown beep (last 3 seconds)
+function beepCountdown() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  playTone(880, t, 0.12, 0.35, 'sine');
+}
+
+// Start / next exercise fanfare
+function beepStart() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  playTone(523, t,        0.12, 0.4, 'sine');
+  playTone(659, t + 0.14, 0.12, 0.4, 'sine');
+  playTone(784, t + 0.28, 0.2,  0.4, 'sine');
+}
+
+// End of set / rest transition
+function beepEnd() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  playTone(784, t,        0.15, 0.4, 'sine');
+  playTone(659, t + 0.17, 0.15, 0.4, 'sine');
+  playTone(523, t + 0.34, 0.3,  0.4, 'sine');
+}
+
+// Final completion
+function beepFinish() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  playTone(523, t,        0.1, 0.5, 'sine');
+  playTone(659, t + 0.12, 0.1, 0.5, 'sine');
+  playTone(784, t + 0.24, 0.1, 0.5, 'sine');
+  playTone(1047,t + 0.36, 0.4, 0.5, 'sine');
+}
+
+function toggleSound() {
+  soundOn = !soundOn;
+  document.getElementById('soundBtn').textContent = soundOn ? '🔔' : '🔕';
+  document.getElementById('soundStatus').textContent = soundOn
+    ? '🔔 音 ON'
+    : '🔕 音 OFF';
+  if (soundOn) resumeAudio();
+}
+
+// ============================
+// MENU
+// ============================
+const CIRCUMFERENCE = 427;
+
+const MENU = [
+  { name:'プランク',     type:'work', duration:60, set:1, total:3, color:'#e63946', note:'腰を落とさない！' },
+  { name:'休憩',         type:'rest', duration:30, set:1, total:3, color:'#f4a261', note:'次 → プランク セット2' },
+  { name:'プランク',     type:'work', duration:60, set:2, total:3, color:'#e63946', note:'腰を落とさない！' },
+  { name:'休憩',         type:'rest', duration:30, set:2, total:3, color:'#f4a261', note:'次 → プランク セット3' },
+  { name:'プランク',     type:'work', duration:60, set:3, total:3, color:'#e63946', note:'最後！全力で！' },
+  { name:'インターバル', type:'rest', duration:60, set:1, total:1, color:'#aaa',    note:'次 → バードドッグ' },
+  { name:'バードドッグ', type:'work', duration:40, set:1, total:3, color:'#2a9d8f', note:'対角の手足を上げ2秒キープ×左右10回' },
+  { name:'休憩',         type:'rest', duration:30, set:1, total:3, color:'#f4a261', note:'次 → バードドッグ セット2' },
+  { name:'バードドッグ', type:'work', duration:40, set:2, total:3, color:'#2a9d8f', note:'対角の手足を上げ2秒キープ×左右10回' },
+  { name:'休憩',         type:'rest', duration:30, set:2, total:3, color:'#f4a261', note:'次 → バードドッグ セット3' },
+  { name:'バードドッグ', type:'work', duration:40, set:3, total:3, color:'#2a9d8f', note:'最後！全力で！' },
+];
+const TOTAL_SEC = MENU.reduce((s,m) => s+m.duration, 0);
+
+let idx = 0;
+let timeLeft = MENU[0].duration;
+let running = false;
+let timerInterval = null;
+
+// ============================
+// DISPLAY
+// ============================
+function updateDisplay() {
+  if (idx >= MENU.length) { showFinish(); return; }
+  const m = MENU[idx];
+
+  document.getElementById('cardAccent').style.background = m.color;
+  document.getElementById('exerciseName').style.color = m.color;
+  document.getElementById('timerNum').style.color = m.color;
+  document.getElementById('circleFg').style.stroke = m.color;
+  document.getElementById('phaseLabel').textContent = m.type === 'rest' ? '⏸ 休憩' : '▶ トレーニング';
+  document.getElementById('exerciseName').textContent = m.name;
+  document.getElementById('setInfo').textContent = m.type === 'rest'
+    ? m.note
+    : `セット ${m.set} / ${m.total}　|　${m.note}`;
+  document.getElementById('timerNum').textContent = timeLeft;
+  document.getElementById('timerSub').textContent = m.type === 'rest' ? '秒 休憩' : '秒';
+
+  const ratio = timeLeft / m.duration;
+  document.getElementById('circleFg').style.strokeDashoffset = CIRCUMFERENCE * (1 - ratio);
+
+  const elapsed = MENU.slice(0,idx).reduce((s,x) => s+x.duration, 0) + (m.duration - timeLeft);
+  document.getElementById('overallBar').style.width = (elapsed / TOTAL_SEC * 100) + '%';
+
+  renderQueue();
+}
+
+// ============================
+// TIMER
+// ============================
+function tick() {
+  const m = MENU[idx];
+
+  // Finished this segment
+  if (timeLeft <= 0) {
+    beepEnd();
+    idx++;
+    if (idx >= MENU.length) {
+      running = false;
+      clearInterval(timerInterval); timerInterval = null;
+      beepFinish();
+      showFinish();
+      return;
+    }
+    timeLeft = MENU[idx].duration;
+    flashCard();
+    beepStart();
+    updateDisplay();
+    return;
+  }
+
+  // Countdown beep for last 3 seconds
+  if (timeLeft <= 3) {
+    beepCountdown();
+  } else if (m.type === 'work') {
+    beepTick();
+  }
+
+  timeLeft--;
+  updateDisplay();
+}
+
+function flashCard() {
+  const card = document.getElementById('mainCard');
+  card.style.opacity = '0.3';
+  setTimeout(() => { card.style.opacity = '1'; }, 250);
+}
+
+function toggleTimer() {
+  // CRITICAL: init & resume audio on first user gesture
+  initAudio();
+  resumeAudio();
+
+  const btn = document.getElementById('startBtn');
+  if (!running) {
+    running = true;
+    btn.textContent = '一時停止';
+    btn.classList.remove('pulsing');
+    document.getElementById('soundStatus').textContent = soundOn ? '🔔 音 ON' : '🔕 音 OFF';
+    beepStart();
+    timerInterval = setInterval(tick, 1000);
+  } else {
+    running = false;
+    btn.textContent = '再開';
+    btn.classList.add('pulsing');
+    clearInterval(timerInterval); timerInterval = null;
+  }
+}
+
+function skipCurrent() {
+  if (idx >= MENU.length - 1) return;
+  initAudio(); resumeAudio();
+
+  const wasRunning = running;
+  if (running) { clearInterval(timerInterval); timerInterval = null; running = false; }
+
+  beepEnd();
+  idx++;
+  timeLeft = MENU[idx].duration;
+  flashCard();
+  updateDisplay();
+
+  if (wasRunning) {
+    running = true;
+    document.getElementById('startBtn').textContent = '一時停止';
+    document.getElementById('startBtn').classList.remove('pulsing');
+    setTimeout(() => { beepStart(); }, 300);
+    timerInterval = setInterval(tick, 1000);
+  }
+}
+
+function resetAll() {
+  running = false;
+  clearInterval(timerInterval); timerInterval = null;
+  idx = 0; timeLeft = MENU[0].duration;
+  document.getElementById('startBtn').textContent = 'スタート';
+  document.getElementById('startBtn').classList.add('pulsing');
+  document.getElementById('finishScreen').style.display = 'none';
+  document.getElementById('mainCard').style.display = '';
+  document.getElementById('queueTitleEl').style.display = '';
+  document.getElementById('queueList').style.display = '';
+  document.getElementById('overallBar').style.width = '0%';
+  document.getElementById('saveMsg').style.display = 'none';
+  updateDisplay();
+}
+
+function showFinish() {
+  document.getElementById('mainCard').style.display = 'none';
+  document.getElementById('queueTitleEl').style.display = 'none';
+  document.getElementById('queueList').style.display = 'none';
+  document.getElementById('overallBar').style.width = '100%';
+  document.getElementById('statMin').textContent = Math.round(TOTAL_SEC / 60);
+  document.getElementById('finishScreen').style.display = 'flex';
+}
+
+function renderQueue() {
+  const el = document.getElementById('queueList');
+  el.innerHTML = '';
+  const blocks = [
+    { name:'プランク',    detail:'60秒 × 3セット', color:'#e63946', s:0, e:4 },
+    { name:'バードドッグ', detail:'左右10回×2秒 × 3セット', color:'#2a9d8f', s:6, e:10 },
+  ];
+  blocks.forEach(b => {
+    const done = idx > b.e;
+    const active = idx >= b.s && idx <= b.e;
+    const div = document.createElement('div');
+    div.className = 'queue-item' + (active?' active':'') + (done?' done':'');
+    div.innerHTML = `<div class="q-dot" style="background:${b.color}"></div><div class="q-name">${b.name}</div><div class="q-detail">${b.detail}</div>`;
+    el.appendChild(div);
+  });
+}
+
+// ============================
+// RECORDS
+// ============================
+function getRecords() {
+  try { return JSON.parse(localStorage.getItem('swimTrainingRec') || '[]'); } catch { return []; }
+}
+function setRecords(r) {
+  try { localStorage.setItem('swimTrainingRec', JSON.stringify(r)); } catch {}
+}
+
+function saveRecord() {
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0,10);
+  const records = getRecords();
+  const i = records.findIndex(r => r.date === dateStr);
+  const entry = {
+    date: dateStr,
+    sets: 6,
+    minutes: Math.round(TOTAL_SEC / 60),
+    exercises: 'プランク×3 + バードドッグ×3',
+    time: now.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'})
+  };
+  if (i >= 0) records[i] = entry; else records.push(entry);
+  setRecords(records);
+  document.getElementById('saveMsg').style.display = 'block';
+  renderCalendar(); renderRecordList();
+}
+
+// ============================
+// CALENDAR
+// ============================
+let calYear, calMonth;
+const todayObj = new Date();
+
+function initCal() {
+  calYear = todayObj.getFullYear();
+  calMonth = todayObj.getMonth();
+  renderCalendar();
+  renderRecordList();
+}
+
+function calPrev() { if (--calMonth < 0) { calMonth=11; calYear--; } renderCalendar(); }
+function calNext() { if (++calMonth > 11) { calMonth=0; calYear++; } renderCalendar(); }
+
+function renderCalendar() {
+  const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  document.getElementById('calTitle').textContent = `${calYear}年 ${MONTHS[calMonth]}`;
+
+  const records = getRecords();
+  const recDates = new Set(records.map(r => r.date));
+  const todayStr = todayObj.toISOString().slice(0,10);
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const daysInPrev = new Date(calYear, calMonth, 0).getDate();
+
+  const container = document.getElementById('calDays');
+  container.innerHTML = '';
+
+  for (let i = firstDay-1; i >= 0; i--) {
+    const d = document.createElement('div');
+    d.className = 'cal-day other-month';
+    d.textContent = daysInPrev - i;
+    container.appendChild(d);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const div = document.createElement('div');
+    let cls = 'cal-day';
+    if (ds === todayStr) cls += ' today';
+    if (recDates.has(ds)) { cls += ' has-record'; div.onclick = () => scrollToRecord(ds); }
+    div.className = cls;
+    div.textContent = d;
+    container.appendChild(div);
+  }
+
+  const total = firstDay + daysInMonth;
+  const rem = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let i = 1; i <= rem; i++) {
+    const d = document.createElement('div');
+    d.className = 'cal-day other-month';
+    d.textContent = i;
+    container.appendChild(d);
+  }
+
+  const ms = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+  const mr = records.filter(r => r.date.startsWith(ms));
+  document.getElementById('statCount').textContent = mr.length;
+  document.getElementById('statTotal').textContent = mr.reduce((s,r) => s+(r.sets||0), 0);
+
+  // streak
+  let streak = 0;
+  let check = new Date(todayStr);
+  const allDates = records.map(r => r.date);
+  for (let i = 0; i < 365; i++) {
+    if (allDates.includes(check.toISOString().slice(0,10))) {
+      streak++;
+      check.setDate(check.getDate()-1);
+    } else break;
+  }
+  document.getElementById('statStreak').textContent = streak;
+}
+
+function renderRecordList() {
+  const records = getRecords().slice().sort((a,b) => b.date.localeCompare(a.date));
+  const el = document.getElementById('recordList');
+  if (!records.length) {
+    el.innerHTML = '<div class="empty-state">まだ記録がありません。<br>トレーニングを完了して記録しよう！</div>';
+    return;
+  }
+  el.innerHTML = '';
+  records.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'record-item';
+    div.id = 'rec-' + r.date;
+    const label = new Date(r.date).toLocaleDateString('ja-JP', {year:'numeric', month:'long', day:'numeric', weekday:'short'});
+    div.innerHTML = `
+      <div class="record-date">${label}　${r.time||''}</div>
+      <div class="record-detail">🏊 ${r.exercises}</div>
+      <div class="record-note">${r.sets}セット　|　約${r.minutes}分</div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+function scrollToRecord(ds) {
+  showTab('records');
+  setTimeout(() => {
+    const el = document.getElementById('rec-' + ds);
+    if (el) el.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 100);
+}
+
+function showTab(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.tab')[name === 'timer' ? 0 : 1].classList.add('active');
+  if (name === 'records') { renderCalendar(); renderRecordList(); }
+}
+
+// ============================
+// INIT
+// ============================
+initCal();
+updateDisplay();
+</script>
+
+</body>
+</html>
